@@ -3,7 +3,8 @@ use <motor-support.scad>;
 use <led-hole.scad>;
 
 // globals
-//$fn=80; // use 150 to export stl
+$fn = $preview ? 30 : 150;
+
 cutExtra = 1;
 
 // base dimensions
