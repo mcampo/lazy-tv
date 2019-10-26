@@ -1,85 +1,68 @@
-use <involute_gears.scad>;
-use <motor-support.scad>;
-use <led-hole.scad>;
+use <lib/BOSL/involute_gears.scad>
+use <lib/scad-lib/face-gear/face-gear.scad>
+use <motor-support.scad>
+use <led-hole.scad>
+
+// colors
+// 66c2a5 fc8d62 8da0cb e78ac3 a6d854 ffd92f e5c494 b3b3b3
+
 
 // globals
-$fn = $preview ? 30 : 150;
+$fn = $preview ? 80 : 150;
 
 cutExtra = 1;
 
 // base dimensions
 baseRadius = 110;
-baseHeight=20;
-baseWidth=10;
+baseHeight = 20;
+baseWidth = 10;
 
 // ball rail
-railRadius=3.15;
-railVerticalOffset=1.5;
-railOuterPadding=2;
-railHorizontalOffset=5;
+railRadius = 3.15;
+railVerticalOffset = 1.5;
+railOuterPadding = 2;
+railHorizontalOffset = 5;
 
 // top dimensions
-topWidth = baseWidth + 5; // base width + some space for the inner gear teeth
+topWidth = baseWidth + 0; // base width + some space for the inner gear teeth
 topVerticalOffset = baseHeight + railVerticalOffset * 2;
 topHeight = 12;
 
-// inner gear dimensions
-innerGearHeight = topHeight;
-innerGearNumberOfTeeth = 120;
-innerGearPitchRadius = (baseRadius - topWidth) + 3; // inner radius + some space for the addendum
-innerGearDiametralPitch = innerGearNumberOfTeeth / (innerGearPitchRadius * 2);
+// gears common
+gearsModule = 1;
+gearsPressureAngle = 30;
+gearsClearance = 0.3;
+gearsTeethLength = 8;
+
+// face gear
+faceGearInnerRadius = baseRadius - baseWidth - gearsTeethLength;
+faceGearNumberOfTeeth = 2 * faceGearInnerRadius / gearsModule;
+faceGearOuterRadius = faceGearInnerRadius + gearsTeethLength;
+faceGearOuterModule = 2 * faceGearOuterRadius / faceGearNumberOfTeeth;
+faceGearBaseHeight = 2;
+
 
 // drive gear dimensions
-driveGearVerticalOffset = 28;
-driveGearHeight = 4;
-driveGearNumberOfTeeth = 14;
-driveGearPitchRadius = driveGearNumberOfTeeth / (innerGearDiametralPitch * 2);
-driveGearHorizontalOffset = innerGearPitchRadius - driveGearPitchRadius - 0.8;
+driveGearGap = 1;
+driveGearHeight = gearsTeethLength - driveGearGap;
+driveGearNumberOfTeeth = 15;
+driveGearRadius = driveGearNumberOfTeeth * gearsModule / 2;
+driveGearHorizontalOffset = baseRadius - baseWidth - driveGearHeight / 2 - driveGearGap;
+driveGearVerticalOffset = topVerticalOffset + topHeight- faceGearBaseHeight - driveGearRadius  - adendum(gearsModule) - gearsClearance; //24.6;
 
+echo(driveGearRadius=driveGearRadius);
 
-base1();
-base2();
-base3();
+color("#fc8d62")
+base();
 
-top1();
-top2();
-top3();
+#color("#8da0cb")
+top();
 
+color("#66c2a5")
 driveGear();
 
-motorSupport(supportRadius = (baseRadius - baseWidth), driveGearHorizontalPosition = driveGearHorizontalOffset);
-
-
-// base 1: with power jack hole
-module base1() {
-  difference() {  
-    base();
-    // power jack hole
-    rotate(60, [0, 0, 1])
-    translate([baseRadius, 0, 2])
-    rotate(90, [0, 0, 1])
-    powerJackHole();
-  }
-}
-
-// base 2: simple
-module base2() {
-  rotate(120, [0,0,1])
-  base();
-}
-
-// base 3: with led hole
-module base3() {
-  rotate(240, [0,0,1])
-  difference() {  
-    base();
-    // led hole
-    rotate(60, [0, 0, 1])
-    translate([baseRadius, 0, 2])
-    rotate(90, [0, 0, 1])
-    ledHole(width = baseWidth);
-  }
-}
+color("#a6d854")
+motorSupport(supportRadius = (baseRadius - baseWidth), driveGearVerticalPosition = driveGearVerticalOffset);
 
 module base() {
   difference() {
@@ -89,11 +72,23 @@ module base() {
     // rail
     translate([0, 0, baseHeight + railVerticalOffset])
     rail();
+
+    // power jack hole
+    rotate(60, [0, 0, 1])
+    translate([baseRadius, 0, 2])
+    rotate(90, [0, 0, 1])
+    powerJackHole();
+
+    // led hole
+    rotate(180, [0, 0, 1])
+    translate([baseRadius, 0, 2])
+    rotate(90, [0, 0, 1])
+    ledHole(width = baseWidth);
   }
 }
 
 module ring(height, width, radius) {
-  rotate_extrude(angle = 120)
+  rotate_extrude(angle = 360)
   translate([radius - width, 0])
   square([width, height]);
 }
@@ -113,55 +108,70 @@ module powerJackHole() {
   cube([holeWidth, holeDepth, holeHeight]);
 }
 
-module top1() {
-  top();
-}
-
-module top2() {
-  rotate(120, [0, 0, 1])
-  top();
-}
-
-module top3() {
-  rotate(240, [0, 0, 1])
-  top();
-}
-
 module top() {
   translate([0, 0, topVerticalOffset])
-  difference() {
-    // top ring
-    ring(width = topWidth, height = topHeight, radius = baseRadius);
+  union() {
+    difference() {
+      // top ring
+      ring(width = topWidth, height = topHeight, radius = baseRadius);
+      
+      // rail
+      translate([0, 0, -railVerticalOffset])
+      rail();
+    }
     
-    // rail
-    translate([0, 0, -railVerticalOffset])
-    rail();
-
-    // gear
-    gear(
-      number_of_teeth = innerGearNumberOfTeeth,
-      diametral_pitch = innerGearDiametralPitch,
-      pressure_angle = 20,
-      gear_thickness = innerGearHeight + cutExtra,
-      rim_thickness = innerGearHeight + cutExtra,
-      hub_thickness = innerGearHeight + cutExtra,
-      bore_diameter = 0,
-      clearance = 0);
+    translate([0, 0, topHeight - faceGearBaseHeight])
+    ring(width = gearsTeethLength, height = faceGearBaseHeight, radius = baseRadius - topWidth);
+    
+    translate([0, 0, topHeight - faceGearBaseHeight])
+    rotate(180, [1, 0, 0])
+    faceGear(gearsModule, gearsPressureAngle, faceGearNumberOfTeeth, gearsTeethLength, clearance = 0);
   }
 }
 
 module driveGear() {
   translate([driveGearHorizontalOffset, 0, driveGearVerticalOffset])
-  gear (
-    number_of_teeth = driveGearNumberOfTeeth,
-    diametral_pitch = innerGearDiametralPitch,
-    pressure_angle = 20,
-    gear_thickness = driveGearHeight,
-    rim_thickness = driveGearHeight,
-    hub_thickness = driveGearHeight,
-    bore_diameter = 4.8);
+  rotate(90, [0, 1, 0])
+  rotate(15, [0, 0, 1])
+  difference() {
+    gear(
+      mm_per_tooth = PI * gearsModule,
+      number_of_teeth = driveGearNumberOfTeeth,
+      thickness = driveGearHeight,
+      pressure_angle = gearsPressureAngle,
+      hole_diameter = 0
+    );
+    
+    cylinder(r = 2.6, h = driveGearHeight + cutExtra, center = true);
+  }
 }
 
-echo(innerGearDiametralPitch=innerGearDiametralPitch);
 
+module slice(sliceNumber = 0) {
+  textSize = 4;
+  textWidth = textSize / 3; // approx
+  textPadding = 2;
+  textDepth = 1;
+  
+  radius = baseRadius * 1.1;
+  height = (topVerticalOffset + topHeight) * 1.1;
+  sliceCount = 3;
 
+  render() {
+    difference() {
+      intersection() {
+        rotate(360 * sliceNumber / sliceCount, [0, 0, 1])
+        rotate_extrude(angle = 360 / sliceCount)
+        square([radius, height]);
+
+        children();
+      }
+
+      rotate(360 * sliceNumber / sliceCount, [0, 0, 1])
+      translate([baseRadius - (baseWidth / 2) - textWidth, textDepth, topVerticalOffset + topHeight - textSize - textPadding])
+      rotate(90, [1, 0, 0])
+      linear_extrude(textDepth)
+      text(str(sliceNumber), size = textSize, font = "Liberation Mono");
+    }
+  }
+}
