@@ -1,33 +1,34 @@
 
+clearance = 0.25;
 cutExtra = 0.2;
-servoHeight = 39.3;
-servoMountHeight = 28;
-servoMountCableWidth = 9;
-servoMountingScrewHolesYDistance = 49;
-servoMountingScrewHolesZDistance = 9.8;
-servoWidth = 20;
+servoHeight = 20;
 servoDepth = 40.5;
-servoDriveGearOffset = 5.6;
+servoSupportWidth = 18;
+servoDriveGearOffset = 10.6;
+servoMountingScrewHolesYDistance = 49;
+servoMountingScrewHolesZDistance = 10;
+servoMountingScrewHoleBaseDepth = 7;
+servoMountingScrewRadius = 1.15;
+servoSupportToDriveWidth = 22;
 
 // sample
 motorSupport(supportRadius = 100, driveGearVerticalPosition = 25);
 
 module motorSupport(supportRadius, driveGearVerticalPosition) {
-  driveGearGap = 8;
   baseHeight = 5;
-  baseWidth = servoHeight + driveGearGap;
-  baseDepth = servoDepth + 7.5 * 2;
+  baseWidth = servoSupportWidth + servoSupportToDriveWidth;
+  baseDepth = servoDepth + (servoMountingScrewHoleBaseDepth + 1) * 2;
   
-  supportHeight = servoWidth + driveGearVerticalPosition - baseHeight - servoWidth / 2;
-  supportWidth = servoMountHeight - servoMountCableWidth;
+  supportHeight = servoHeight + driveGearVerticalPosition - baseHeight - servoHeight / 2;
+  supportWidth = servoSupportWidth;
   supportDepth = baseDepth;
 
-  motorHoleWidth = supportWidth + cutExtra;
-  motorHoleDepth = servoDepth + cutExtra;
+  motorHoleWidth = supportWidth + cutExtra * 2;
+  motorHoleDepth = servoDepth + clearance;
 
-  screwHoleRadius = 1.1;
-  screwHoleHeight = 6;
-  screwHoleXOffset = supportRadius - baseWidth + servoMountCableWidth + supportWidth - screwHoleHeight;
+  screwHoleRadius = servoMountingScrewRadius - 0.05;
+  screwHoleHeight = 7;
+  screwHoleXOffset = supportRadius - baseWidth + supportWidth - screwHoleHeight;
   screwHoleYOffset = servoMountingScrewHolesYDistance / 2;
   screwHoleZOffset = driveGearVerticalPosition;
 
@@ -43,7 +44,7 @@ module motorSupport(supportRadius, driveGearVerticalPosition) {
   translate([0, -servoDriveGearOffset, 0])
   difference() {
     // support
-    translate([supportRadius - baseWidth + servoMountCableWidth, -supportDepth / 2, baseHeight])
+    translate([supportRadius - baseWidth, -supportDepth / 2, baseHeight])
     cube([supportWidth, supportDepth, supportHeight]);
     
     // screw hole 1.1
@@ -68,7 +69,7 @@ module motorSupport(supportRadius, driveGearVerticalPosition) {
 
 
     // motor hole
-    translate([supportRadius - baseWidth + servoMountCableWidth - cutExtra, -motorHoleDepth / 2, baseHeight + (supportHeight - servoWidth)])
-    cube([motorHoleWidth + cutExtra * 2, motorHoleDepth, servoWidth + cutExtra]);
+    translate([supportRadius - baseWidth - cutExtra, -motorHoleDepth / 2, baseHeight + (supportHeight - servoHeight)])
+    cube([motorHoleWidth, motorHoleDepth, servoHeight + cutExtra]);
   }
 }

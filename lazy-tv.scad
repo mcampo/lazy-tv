@@ -45,17 +45,18 @@ faceGearBaseHeight = 2;
 // drive gear dimensions
 driveGearGap = 1;
 driveGearHeight = gearsTeethLength - driveGearGap;
-driveGearNumberOfTeeth = 15;
+driveGearNumberOfTeeth = 23;
 driveGearRadius = driveGearNumberOfTeeth * gearsModule / 2;
 driveGearHorizontalOffset = baseRadius - baseWidth - driveGearHeight / 2 - driveGearGap;
-driveGearVerticalOffset = topVerticalOffset + topHeight- faceGearBaseHeight - driveGearRadius  - adendum(gearsModule) - gearsClearance; //24.6;
+driveGearVerticalOffset = topVerticalOffset + topHeight- faceGearBaseHeight - driveGearRadius  - adendum(gearsModule) - gearsClearance;
+driveGearHoleRadius = 5.75 / 2;
 
 echo(driveGearRadius=driveGearRadius);
 
 color("#fc8d62")
 base();
 
-#color("#8da0cb")
+color("#8da0cb")
 top();
 
 color("#66c2a5")
@@ -142,7 +143,7 @@ module driveGear() {
       hole_diameter = 0
     );
     
-    cylinder(r = 2.6, h = driveGearHeight + cutExtra, center = true);
+    cylinder(r = driveGearHoleRadius + 0.05, h = driveGearHeight + cutExtra, center = true);
   }
 }
 
