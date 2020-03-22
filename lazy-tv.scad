@@ -18,10 +18,13 @@ baseHeight = 20;
 baseWidth = 10;
 
 // ball rail
-railRadius = 3.15;
+railRadius = 6.34 / 2;
 railVerticalOffset = 1.5;
 railOuterPadding = 2;
 railHorizontalOffset = 5;
+
+numberOfBalls = 57;
+cageHeight = 1.4;
 
 // top dimensions
 topWidth = baseWidth + 0; // base width + some space for the inner gear teeth
@@ -30,7 +33,7 @@ topHeight = 12;
 
 // gears common
 gearsModule = 1;
-gearsPressureAngle = 30;
+gearsPressureAngle = 20;
 gearsClearance = 0.3;
 gearsTeethLength = 8;
 
@@ -55,6 +58,9 @@ echo(driveGearRadius=driveGearRadius);
 
 color("#fc8d62")
 base();
+
+color("#ffd92f")
+cage();
 
 color("#8da0cb")
 top();
@@ -109,6 +115,19 @@ module powerJackHole() {
   cube([holeWidth, holeDepth, holeHeight]);
 }
 
+module cage() {
+    translate([0, 0, baseHeight]) {
+      difference() {
+        ring(width = topWidth, height = cageHeight, radius = baseRadius);
+        for (i = [0:numberOfBalls - 1]) {
+          rotate(i * 360 / numberOfBalls, [0, 0, 1])
+          translate([baseRadius - railHorizontalOffset, 0, -cutExtra / 2])
+          cylinder(r = railRadius * 1.01, h = cageHeight + cutExtra);
+        }
+      }
+    }
+}
+
 module top() {
   translate([0, 0, topVerticalOffset])
   union() {
@@ -133,7 +152,7 @@ module top() {
 module driveGear() {
   translate([driveGearHorizontalOffset, 0, driveGearVerticalOffset])
   rotate(90, [0, 1, 0])
-  rotate(15, [0, 0, 1])
+  rotate(360/driveGearNumberOfTeeth/4, [0, 0, 1])
   difference() {
     gear(
       mm_per_tooth = PI * gearsModule,
