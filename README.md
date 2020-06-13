@@ -13,3 +13,7 @@ Run the following command to download all dependencies. They will be placed in a
 ```console
 $ ./install-dependencies.sh
 ```
+
+## Wiring diagram
+
+![Breadboard view](breadboard-view.svg)
