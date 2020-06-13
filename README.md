@@ -16,4 +16,4 @@ $ ./install-dependencies.sh
 
 ## Wiring diagram
 
-![Breadboard view](breadboard-view.svg)
+![Breadboard view](breadboard-view.png)
