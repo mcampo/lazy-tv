@@ -84,6 +84,7 @@ motorSupport(supportRadius = (baseRadius - baseWidth), driveGearVerticalPosition
 //rotate(90, [0, 0, 1])
 //servo();
 
+
 module basePadding() {
   basePaddingWidth = baseWidth + basePaddingGuideWidth + basePaddingClearence;
   basePaddingRadius = baseRadius;
@@ -198,22 +199,21 @@ module driveGear() {
   translate([driveGearHorizontalOffset, 0, driveGearVerticalOffset])
   rotate(-90, [0, 1, 0])
   rotate(14, [0, 0, 1])
-  difference() {
-    union() {
-      gear(
-        mm_per_tooth = PI * gearsModule,
-        number_of_teeth = driveGearNumberOfTeeth,
-        thickness = driveGearHeight,
-        pressure_angle = gearsPressureAngle,
-        hole_diameter = 0
-      );
-      
-      translate([0, 0, shaftExtensionLength])
-      cylinder(r = driveGearHoleRadius + shaftExtensionThickness, h = shaftExtensionLength, center = true);
+  union() {
+    gear(
+      mm_per_tooth = PI * gearsModule,
+      number_of_teeth = driveGearNumberOfTeeth,
+      thickness = driveGearHeight,
+      pressure_angle = gearsPressureAngle,
+      hole_diameter = 0
+    );
+
+    translate([0, 0, shaftExtensionLength])
+    difference() {
+      cylinder(r = driveGearHoleRadius + shaftExtensionThickness, h = shaftExtensionLength, center = true);    
+
+      cylinder(r = driveGearHoleRadius + 0.15, h = shaftExtensionLength + cutExtra, center = true);
     }
-    
-    translate([0, 0, driveGearHeight / 2])
-    cylinder(r = driveGearHoleRadius + 0.05, h = driveGearHeight + shaftExtensionLength + cutExtra, center = true);
   }
 }
 
