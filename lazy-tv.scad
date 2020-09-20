@@ -1,13 +1,13 @@
 use <lib/BOSL/involute_gears.scad>
-use <lib/scad-lib/face-gear/face-gear.scad>
 use <motor-support.scad>
 use <led-hole.scad>
 use <servo.scad>
+
 // colors
 // 66c2a5 fc8d62 8da0cb e78ac3 a6d854 ffd92f e5c494 b3b3b3
 
 // globals
-$fn = $preview ? 80 : 150;
+$fn = $preview ? 50 : 150;
 
 cutExtra = 1;
 
@@ -176,22 +176,6 @@ module top() {
     encloseHeight = encloseTopOverlap + encloseBaseOverlap + railVerticalOffset * 2;
     encloseWidth = 1.8;
     encloseGap = 1;
-        
-    *difference() {
-      translate([0, 0, -encloseHeight + encloseTopOverlap])
-      ring(width = encloseWidth, height = encloseHeight, radius = baseRadius + encloseWidth);
-
-      translate([0, 0, -encloseHeight + encloseTopOverlap])
-      ring(width = encloseGap, height = encloseHeight - encloseTopOverlap, radius = baseRadius + encloseGap);
-
-      rotate_extrude()
-      translate([baseRadius, encloseTopOverlap])
-      polygon([[0, 0], [encloseWidth, 0], [encloseWidth, -encloseTopOverlap * 0.8]]);
-    }
-    
-    translate([0, 0, topHeight - faceGearBaseHeight])
-    rotate(180, [1, 0, 0])
-    faceGear(gearsModule, gearsPressureAngle, faceGearNumberOfTeeth, gearsTeethLength, clearance = 0);
   }
 }
 
