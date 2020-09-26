@@ -1,7 +1,7 @@
 use <lib/BOSL/involute_gears.scad>
 use <led-hole.scad>
-use <servo.scad>
-include <test.scad>
+use <mg90s.scad>
+//include <test.scad>
 // colors
 // 66c2a5 fc8d62 8da0cb e78ac3 a6d854 ffd92f e5c494 b3b3b3
 
@@ -11,7 +11,7 @@ $fn = $preview ? 50 : 150;
 cutExtra = 1;
 
 // base dimensions
-baseRadius = 110;
+baseRadius = 145 / 2;
 baseHeight = 18;
 baseWidth = 10;
 
@@ -71,8 +71,8 @@ cage();
 color("#8da0cb")
 top();
 
-translate([50, -15 + baseRadius - baseWidth - 6, 10])
-rotate(180, [0, 1, 0])
+translate([10, baseRadius - baseWidth - servo_top() - 5, 10])
+rotate(90, [0, 1, 0])
 rotate(90, [1, 0, 0])
 servo();
 
