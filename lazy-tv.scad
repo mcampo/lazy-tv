@@ -1,8 +1,7 @@
 use <lib/BOSL/involute_gears.scad>
-use <motor-support.scad>
 use <led-hole.scad>
 use <servo.scad>
-
+include <test.scad>
 // colors
 // 66c2a5 fc8d62 8da0cb e78ac3 a6d854 ffd92f e5c494 b3b3b3
 
@@ -72,18 +71,10 @@ cage();
 color("#8da0cb")
 top();
 
-color("#66c2a5")
-driveGear();
-
-color("#a6d854")
-motorSupport(supportRadius = (baseRadius - baseWidth), driveGearVerticalPosition = driveGearVerticalOffset, driveGearHorizontalPosition = driveGearHorizontalOffset - driveGearHeight / 2 - shaftExtensionLength, driveGearOverlap = driveGearOverlap);
-
-//translate([driveGearHorizontalOffset - driveGearHeight / 2 - 29 - 15.9 + driveGearOverlap - shaftExtensionLength, 0, driveGearVerticalOffset])
-//rotate(180, [1, 0, 0])
-//rotate(90, [0, 1, 0])
-//rotate(90, [0, 0, 1])
-//servo();
-
+translate([50, -15 + baseRadius - baseWidth - 6, 10])
+rotate(180, [0, 1, 0])
+rotate(90, [1, 0, 0])
+servo();
 
 module basePadding() {
   basePaddingWidth = baseWidth + basePaddingGuideWidth + basePaddingClearence;
@@ -158,49 +149,15 @@ module cage() {
 
 module top() {
   translate([0, 0, topVerticalOffset])
-  union() {
-    difference() {
-      // top ring
-      ring(width = topWidth, height = topHeight, radius = baseRadius);
-      
-      // rail
-      translate([0, 0, -railVerticalOffset])
-      rail();
-    }
+  difference() {
+    // top ring
+    ring(width = topWidth, height = topHeight, radius = baseRadius);
     
-    translate([0, 0, topHeight - faceGearBaseHeight])
-    ring(width = gearsTeethLength, height = faceGearBaseHeight, radius = baseRadius - topWidth);
-    
-    encloseTopOverlap = 6;
-    encloseBaseOverlap = 2;
-    encloseHeight = encloseTopOverlap + encloseBaseOverlap + railVerticalOffset * 2;
-    encloseWidth = 1.8;
-    encloseGap = 1;
+    // rail
+    translate([0, 0, -railVerticalOffset])
+    rail();
   }
 }
-
-module driveGear() {
-  translate([driveGearHorizontalOffset, 0, driveGearVerticalOffset])
-  rotate(-90, [0, 1, 0])
-  rotate(14, [0, 0, 1])
-  union() {
-    gear(
-      mm_per_tooth = PI * gearsModule,
-      number_of_teeth = driveGearNumberOfTeeth,
-      thickness = driveGearHeight,
-      pressure_angle = gearsPressureAngle,
-      hole_diameter = 0
-    );
-
-    translate([0, 0, shaftExtensionLength])
-    difference() {
-      cylinder(r = driveGearHoleRadius + shaftExtensionThickness, h = shaftExtensionLength, center = true);    
-
-      cylinder(r = driveGearHoleRadius + 0.15, h = shaftExtensionLength + cutExtra, center = true);
-    }
-  }
-}
-
 
 module slice(sliceNumber = 0, sliceCount = 3) {
   radius = baseRadius * 1.1;

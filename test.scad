@@ -21,7 +21,7 @@ profile = [
 
 
 gear_height = d * 0.6;
-gear_number_of_teeth = 30;
+gear_number_of_teeth = 53;
 gear_radius = pitch * gear_number_of_teeth / PI / 2;
 gear_chamfer = thread_depth;
 x = d * 0.05;
