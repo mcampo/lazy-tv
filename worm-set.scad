@@ -4,7 +4,8 @@ use <lib/BOSL/involute_gears.scad>
 use <lib/BOSL/transforms.scad>
 
 // globals
-$fn = $preview ? 30 : 150;
+//$fn = $preview ? 30 : 150;
+cut_extra = 0.2;
 
 pitch = 5;
 thread_angle = 15;
@@ -18,10 +19,11 @@ module example() {
   wheel_height = worm_drive_diameter * 0.6;
   wheel_number_of_teeth = 53;
   wheel_radius = pitch * wheel_number_of_teeth / PI / 2;
+  echo(inverse = wheel_radius / pitch * PI  * 2);
   wheel_chamfer = thread_depth; 
 
   base_width = worm_drive_diameter;
-  base_height = 2 + worm_drive_diameter * 0.65;
+  base_height = 2 + worm_drive_diameter * 0.7;
   base_depth = 5;
 
   //bottom_half(s = 150) 
@@ -52,7 +54,8 @@ module example() {
     worm_drive_thread_depth = thread_depth,
     base_width = base_width,
     base_height = base_height,
-    base_depth = base_depth
+    base_depth = base_depth,
+    worm_drive_distance = 2
   );
 }
 
@@ -119,7 +122,7 @@ module worm_wheel(
       square([worm_drive_diameter / 2 - thread_depth, pitch / 2 + delta]);
     }
     
-    cylinder(r = hole_radius, h = height, center = true);
+    cylinder(r = hole_radius, h = height + cut_extra, center = true);
   }
 }
 
@@ -155,7 +158,8 @@ module worm_set_base(
   worm_drive_thread_depth,
   base_width,
   base_height,
-  base_depth
+  base_depth,
+  worm_drive_distance
 ) {
   union() {
     linear_extrude(height = 3)
@@ -174,11 +178,11 @@ module worm_set_base(
     
     translate([wheel_radius + worm_drive_diameter / 2 - worm_drive_thread_depth - __x(worm_drive_diameter) - base_width / 2, -wheel_radius * 0.6, 3])
     rotate([90, 0, 0])
-    rod_support(base_width, base_height, base_depth, worm_drive_diameter);
+    rod_support(base_width, base_height, base_depth, worm_drive_diameter, thread_depth, worm_drive_distance);
 
     translate([wheel_radius + worm_drive_diameter / 2 - worm_drive_thread_depth - __x(worm_drive_diameter) - base_width / 2, wheel_radius * 0.6 + base_depth, 3])
     rotate([90, 0, 0])
-    rod_support(base_width, base_height, base_depth, worm_drive_diameter);
+    rod_support(base_width, base_height, base_depth, worm_drive_diameter, thread_depth, worm_drive_distance);
   }
 }
 
@@ -186,15 +190,19 @@ module rod_support(
   base_width,
   base_height,
   base_depth,
-  worm_drive_diameter
+  worm_drive_diameter,
+  thread_depth,
+  worm_drive_distance,
+  clearance = 0.15
 ) {
+  echo(base_width);
   linear_extrude(height = base_depth)
   union() {
-    offset(r = 1) offset(delta = -1)
+    offset(r = base_width * 0.05) offset(delta = -base_width * 0.05)
     difference(){
       square([base_width, base_height]);
-      translate([base_width / 2, worm_drive_diameter / 2 + 2])
-      circle(r = worm_drive_diameter / 2 - thread_depth + 0.2);
+      translate([base_width / 2, worm_drive_diameter / 2 + worm_drive_distance])
+      circle(r = worm_drive_diameter / 2 - thread_depth + clearance);
     }
     square([base_width, 1]);
   }

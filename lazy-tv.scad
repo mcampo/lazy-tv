@@ -1,18 +1,19 @@
 use <lib/BOSL/involute_gears.scad>
 use <led-hole.scad>
-use <mg90s.scad>
+//use <mg90s.scad>
+use <servo.scad>
+use <worm-set.scad>
 //include <test.scad>
 // colors
 // 66c2a5 fc8d62 8da0cb e78ac3 a6d854 ffd92f e5c494 b3b3b3
 
 // globals
-$fn = $preview ? 50 : 150;
-
+$fn = $preview ? 30 : 150;
 cutExtra = 1;
 
 // base dimensions
 baseRadius = 145 / 2;
-baseHeight = 18;
+baseHeight = 26;
 baseWidth = 10;
 
 // base padding dimensions
@@ -27,7 +28,7 @@ railVerticalOffset = 1.5;
 railOuterPadding = 2;
 railHorizontalOffset = 5;
 
-numberOfBalls = 45;
+numberOfBalls = 16;//45;
 cageHeight = 1.4;
 
 // top dimensions
@@ -60,21 +61,309 @@ driveGearOverlap = 3;
 shaftExtensionLength = 5;
 shaftExtensionThickness = 2;
 
+mounting_screw_hole_radius = 1.15 - 0.1;
+mounting_screw_hole_height = 7;
+mounting_screw_connecting_hole_radius = 1.6;
+
+servo_to_worm_gears_pitch = 3;
+servo_to_worm_gears_pressure_angle = 20;
+servo_to_worm_gears_thickness = 3;
+servo_to_worm_gears_clearance = 0.2;
+servo_to_worm_gears_backlash = 0.2;
+servo_to_worm_gears_shaft_length = 12;
+servo_gear_number_of_teeth = 21;
+servo_gear_shaft_mount_radius = servo_shaft_diameter() / 2 + 2;
+servo_gear_shaft_mount_height = 4;
+servo_gear_shaft_mount_hole_radius = servo_shaft_diameter() / 2 + 0.15;
+servo_gear_pitch_radius = pitch_radius(mm_per_tooth=servo_to_worm_gears_pitch, number_of_teeth=servo_gear_number_of_teeth);
+gear_worm_number_of_teeth = 16;
+gear_worm_pitch_radius = pitch_radius(mm_per_tooth=servo_to_worm_gears_pitch, number_of_teeth=gear_worm_number_of_teeth);
+
+
+servo_holder_thickness_bottom = 2;
+servo_holder_thickness_top = 2;
+
+
+pitch = 5;
+thread_depth = pitch / 2;
+
+worm_drive_diameter = 10;
+worm_drive_length = 20;
+
+wheel_height = worm_drive_diameter * 0.6;
+wheel_number_of_teeth = 50;//ceil((baseRadius + thread_depth + 0.3 * 2) / pitch * PI  * 2);
+wheel_radius = pitch * wheel_number_of_teeth / PI / 2;
+wheel_inner_radius = wheel_radius - thread_depth - 7;
+wheel_chamfer = thread_depth;
+worm_drive_vertical_position = servo_width() / 2 + servo_gear_pitch_radius + gear_worm_pitch_radius + servo_holder_thickness_bottom;
+
+servo_to_worm_gears_shaft_diameter = worm_drive_diameter - thread_depth * 2;
+
+
+
 echo(driveGearRadius=driveGearRadius);
 
-color("#fc8d62")
+color("LightBlue")
 base();
 
-color("#ffd92f")
+color("Wheat")
 cage();
 
-color("#8da0cb")
+color("LightSteelBlue")
 top();
 
-translate([10, baseRadius - baseWidth - servo_top() - 5, 10])
-rotate(90, [0, 1, 0])
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), -servo_top() + worm_drive_length / 2 + servo_to_worm_gears_shaft_length, servo_width() / 2 + servo_holder_thickness_bottom])
+rotate(180, [0, 0, 1])
 rotate(90, [1, 0, 0])
 servo();
+
+color("PowderBlue")
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), -worm_drive_length / 2, worm_drive_vertical_position])
+rotate([-90, 0, 0])
+worm_drive(
+  pitch = pitch,
+  diameter = worm_drive_diameter,
+  length = worm_drive_length
+);
+
+color("MediumAquamarine")
+translate([0, 0, worm_drive_vertical_position])
+worm_wheel_assembly();
+
+module worm_wheel_assembly() {
+  difference() {
+    worm_wheel(
+      radius = wheel_radius,
+      height = wheel_height,
+      pitch = pitch,
+      number_of_teeth = wheel_number_of_teeth,
+      chamfer = wheel_chamfer,
+      worm_drive_diameter = worm_drive_diameter,
+      hole_radius = wheel_inner_radius
+    );
+    
+    for(i = [0:2]) {
+      rotate(i * 360 / 3, [0, 0, 1])
+      translate([0, wheel_inner_radius + (wheel_radius - thread_depth - wheel_inner_radius) / 2, -wheel_height / 2 + 0.6])
+      cylinder(r = mounting_screw_hole_radius, h = mounting_screw_hole_height + cutExtra);
+    }
+  }
+}
+
+worm_wheel_connector_thickness = 1.2;
+worm_wheel_connector_angle = 45;
+worm_wheel_connector_width = 8;
+worm_wheel_connector_top_gap = 1;
+worm_wheel_connector_top_padding = 2;
+worm_wheel_connector_top_clearance = 0.3;
+
+
+color("DarkSeaGreen")
+for (i = [0 : 2])
+  rotate(i * 360 / 3, [0, 0, 1])
+  worm_wheel_connector();
+
+module worm_wheel_connector() {
+  worm_wheel_end_width = wheel_radius - thread_depth - wheel_inner_radius - 1;
+  top_end_width = topWidth - worm_wheel_connector_top_padding;
+  connector_height = topVerticalOffset + topHeight - worm_drive_vertical_position - wheel_height / 2 - worm_wheel_connector_top_gap;
+  connector_width = worm_wheel_connector_width;
+
+  difference() {
+    rotate(90, [0, 0, 1])
+    translate([wheel_inner_radius, connector_width / 2, worm_drive_vertical_position + wheel_height / 2])
+    rotate(90, [1, 0, 0])
+    linear_extrude(height = connector_width)
+    union() {
+      square([worm_wheel_end_width, worm_wheel_connector_thickness]);  
+      
+      translate([worm_wheel_end_width - worm_wheel_connector_thickness / sin(worm_wheel_connector_angle), 0])
+      polygon([
+        [0, 0],
+        [0, connector_height] + [connector_height * cos(worm_wheel_connector_angle) / sin(worm_wheel_connector_angle), 0],
+        [worm_wheel_connector_thickness / sin(worm_wheel_connector_angle), connector_height] + [connector_height * cos(worm_wheel_connector_angle) / sin(worm_wheel_connector_angle), 0],
+        [worm_wheel_connector_thickness / sin(worm_wheel_connector_angle), 0]
+      ]);
+      
+      extension_width = baseRadius - topWidth - wheel_inner_radius + top_end_width - worm_wheel_end_width - connector_height * cos(worm_wheel_connector_angle) / sin(worm_wheel_connector_angle) + worm_wheel_connector_thickness / sin(worm_wheel_connector_angle);
+
+      translate([baseRadius - topWidth - wheel_inner_radius + top_end_width - extension_width, connector_height - worm_wheel_connector_thickness])
+      square([extension_width, worm_wheel_connector_thickness]);
+    }
+
+    translate([0, wheel_inner_radius + (wheel_radius - thread_depth - wheel_inner_radius) / 2, worm_drive_vertical_position + wheel_height / 2])
+    translate([0, 0, -cutExtra / 2])
+    cylinder(r = mounting_screw_connecting_hole_radius, h = worm_wheel_connector_thickness + cutExtra);
+
+    translate([0, baseRadius - topWidth / 2, topVerticalOffset + topWidth])
+    translate([0, 0, -cutExtra / 2])
+    cylinder(r = mounting_screw_connecting_hole_radius, h = worm_wheel_connector_thickness + cutExtra);
+  }
+}
+
+color("PowderBlue")
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), worm_drive_length / 2, worm_drive_vertical_position])
+rotate(-90, [1, 0, 0])
+cylinder(d = servo_to_worm_gears_shaft_diameter, h = servo_to_worm_gears_shaft_length);
+
+color("PowderBlue")
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), -worm_drive_length / 2, worm_drive_vertical_position])
+rotate(90, [1, 0, 0])
+cylinder(d = servo_to_worm_gears_shaft_diameter, h = servo_to_worm_gears_shaft_length / 2);
+
+
+
+rod_support_width = worm_drive_diameter * 0.8;
+rod_support_worm_drive_distance = worm_drive_vertical_position - servo_width() - worm_drive_diameter / 2 - servo_holder_thickness_bottom - servo_holder_thickness_top;
+rod_support_height = worm_drive_diameter * 0.75 + rod_support_worm_drive_distance;
+rod_support_depth = 4;
+rod_support_clearance = 0.1;
+
+rod_support_top_depth_position = worm_drive_length / 2 + 2;
+rod_support_bottom_depth_position = -worm_drive_length / 2 - 2;
+rod_support_base_depth = rod_support_top_depth_position - rod_support_bottom_depth_position + rod_support_depth * 2;
+
+servo_to_worm_gears_shaft_stopper_diameter = rod_support_width;
+servo_to_worm_gears_shaft_stopper_height = 3;
+
+color("PowderBlue")
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), rod_support_top_depth_position + rod_support_depth, worm_drive_vertical_position])
+servo_to_worm_gears_shaft_stopper();
+
+color("PowderBlue")
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), rod_support_bottom_depth_position - rod_support_depth - servo_to_worm_gears_shaft_stopper_height, worm_drive_vertical_position])
+servo_to_worm_gears_shaft_stopper();
+
+module servo_to_worm_gears_shaft_stopper() {
+  translate([0, servo_to_worm_gears_shaft_stopper_height, 0])
+  rotate(90, [1, 0, 0])
+  union(){
+  cylinder(d1 = servo_to_worm_gears_shaft_diameter, d2 = servo_to_worm_gears_shaft_stopper_diameter, h = servo_to_worm_gears_shaft_stopper_height / 3);
+
+  translate([0, 0, servo_to_worm_gears_shaft_stopper_height / 3])
+  cylinder(d = servo_to_worm_gears_shaft_stopper_diameter, h = servo_to_worm_gears_shaft_stopper_height / 3);
+
+  translate([0, 0, 2 * servo_to_worm_gears_shaft_stopper_height / 3])
+  cylinder(d1 = servo_to_worm_gears_shaft_stopper_diameter, d2 = servo_to_worm_gears_shaft_diameter, h = servo_to_worm_gears_shaft_stopper_height / 3);
+  }
+}
+
+color("PaleGreen")
+servo_gear();
+
+module servo_gear() {
+  translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), worm_drive_length / 2 + servo_to_worm_gears_shaft_length, 0])
+  translate([0, servo_to_worm_gears_thickness / 2, worm_drive_vertical_position - servo_gear_pitch_radius - gear_worm_pitch_radius])
+  rotate(90, [1, 0, 0])
+  union() {
+    gear(mm_per_tooth=servo_to_worm_gears_pitch, number_of_teeth=servo_gear_number_of_teeth, thickness=servo_to_worm_gears_thickness, hole_diameter=0, pressure_angle=servo_to_worm_gears_pressure_angle, clearance = servo_to_worm_gears_clearance, backlash = servo_to_worm_gears_backlash);
+
+    translate([0, 0, servo_to_worm_gears_thickness / 2])
+    difference() {
+      cylinder(r = servo_gear_shaft_mount_radius, h = servo_gear_shaft_mount_height);
+      cylinder(r = servo_gear_shaft_mount_hole_radius, h = servo_gear_shaft_mount_height + cutExtra);
+    }
+  }
+}
+
+color("PowderBlue")
+translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth), worm_drive_length / 2 + servo_to_worm_gears_shaft_length, worm_drive_vertical_position])
+translate([0, servo_to_worm_gears_thickness / 2, 0])
+rotate(360 / gear_worm_number_of_teeth / 2, [0, 1, 0])
+rotate(90, [1, 0, 0])
+gear(mm_per_tooth=servo_to_worm_gears_pitch, number_of_teeth=gear_worm_number_of_teeth, thickness=servo_to_worm_gears_thickness, hole_diameter=0, pressure_angle=servo_to_worm_gears_pressure_angle, clearance = servo_to_worm_gears_clearance, backlash = servo_to_worm_gears_backlash);
+
+servo_holder_thickness_sides = servo_pad_length();
+servo_holder_width = servo_length() + servo_holder_thickness_sides * 2;
+servo_holder_depth = 20;
+servo_holder_height = servo_width() + servo_holder_thickness_bottom + servo_holder_thickness_top;
+servo_holder_bottom_connector_height = 10;
+servo_holder_bottom_connector_clearance = 0.1;
+servo_holder_clearance = 0.4;
+servo_holder_mounting_screw_hole_radius = 1.15 - 0.1;
+servo_holder_mounting_screw_hole_height = 7;
+servo_holder_top_screw_hole_radius = 2;
+
+color("Coral")
+servo_holder();
+
+
+module servo_holder() {
+  servo_holder_top();
+  servo_holder_bottom();
+}
+
+
+module servo_holder_top() {
+  
+  translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth) + servo_shaft_to_wall() - servo_holder_width / 2 - servo_length() / 2, -servo_holder_depth + worm_drive_length / 2 + servo_to_worm_gears_shaft_length - servo_shaft_to_pad(), servo_holder_height - servo_holder_thickness_top + servo_holder_clearance / 2])
+  difference() {
+    cube([servo_holder_width, servo_holder_depth, servo_holder_thickness_top - servo_holder_clearance / 2]);
+    
+    translate([servo_holder_thickness_sides / 2, servo_holder_depth / 2, 0])
+    translate([0, 0, -cutExtra / 2])
+    cylinder(r = servo_holder_top_screw_hole_radius, h = servo_holder_thickness_top + cutExtra);
+
+    translate([servo_holder_width - servo_holder_thickness_sides / 2, servo_holder_depth / 2, 0])
+    translate([0, 0, -cutExtra / 2])
+    cylinder(r = servo_holder_top_screw_hole_radius, h = servo_holder_thickness_top + cutExtra);
+  }
+
+  translate([worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth) -rod_support_width / 2, 0, 0])
+  union() {
+    translate([0, rod_support_bottom_depth_position - rod_support_depth, servo_holder_height - servo_holder_thickness_top + servo_holder_clearance / 2])
+    cube([rod_support_width, rod_support_base_depth, servo_holder_thickness_top - servo_holder_clearance / 2]);
+
+    translate([0, rod_support_top_depth_position, worm_drive_vertical_position])
+    translate([0, rod_support_depth, -worm_drive_diameter / 2 - rod_support_worm_drive_distance])
+    rotate([90, 0, 0])
+    rod_support(rod_support_width, rod_support_height, rod_support_depth, worm_drive_diameter, thread_depth, rod_support_worm_drive_distance, rod_support_clearance);
+
+    translate([0, rod_support_bottom_depth_position, worm_drive_vertical_position])
+    translate([0, 0, -worm_drive_diameter / 2 - rod_support_worm_drive_distance])
+    rotate([90, 0, 0])
+    rod_support(rod_support_width, rod_support_height, rod_support_depth, worm_drive_diameter, thread_depth, rod_support_worm_drive_distance, rod_support_clearance);
+  }  
+}
+
+module servo_holder_bottom() {
+  x_offset = worm_drive_distance(wheel_radius, worm_drive_diameter, thread_depth) + servo_shaft_to_wall() - servo_holder_width / 2 - servo_length() / 2;
+  y_offset = -servo_holder_depth + worm_drive_length / 2 + servo_to_worm_gears_shaft_length - servo_shaft_to_pad();
+  translate([x_offset, y_offset, 0])
+  difference() {
+    cube([servo_holder_width, servo_holder_depth, servo_holder_height]);
+    
+    translate([servo_holder_thickness_sides - servo_holder_clearance / 2, -cutExtra / 2, servo_holder_thickness_bottom - servo_holder_clearance / 2])
+    cube([servo_length() + servo_holder_clearance, servo_holder_depth + cutExtra, servo_width() + servo_holder_clearance]);
+    
+    translate([-cutExtra / 2, -cutExtra / 2, servo_holder_height - servo_holder_thickness_top + servo_holder_clearance / 2])
+    cube([servo_holder_width + cutExtra, servo_holder_depth + cutExtra, servo_holder_thickness_top + cutExtra]);
+        
+    translate([servo_pad_length() / 2, servo_holder_depth, servo_holder_height - servo_pad_hole_distance() / 2 - servo_holder_thickness_bottom])
+    rotate(90, [1, 0, 0])
+    cylinder(r = servo_holder_mounting_screw_hole_radius, h = servo_holder_mounting_screw_hole_height);
+
+    translate([servo_holder_width - servo_pad_length() / 2, servo_holder_depth, servo_holder_height - servo_pad_hole_distance() / 2 - servo_holder_thickness_bottom])
+    rotate(90, [1, 0, 0])
+    cylinder(r = servo_holder_mounting_screw_hole_radius, h = servo_holder_mounting_screw_hole_height);
+    
+    translate([servo_holder_width - servo_holder_thickness_sides / 2, servo_holder_depth / 2, servo_holder_height - servo_holder_thickness_top + servo_holder_clearance / 2 - servo_holder_mounting_screw_hole_height])
+    cylinder(r = servo_holder_mounting_screw_hole_radius, h = servo_holder_mounting_screw_hole_height);
+    
+   translate([servo_holder_thickness_sides / 2, servo_holder_depth / 2, servo_holder_height - servo_holder_thickness_top + servo_holder_clearance / 2 - servo_holder_mounting_screw_hole_height])
+    cylinder(r = servo_holder_mounting_screw_hole_radius, h = servo_holder_mounting_screw_hole_height);
+  }
+  
+  linear_extrude(height = servo_holder_bottom_connector_height)
+  intersection() {
+    translate([x_offset + servo_holder_width, y_offset])
+    square([baseRadius - baseWidth - servo_holder_width - x_offset, servo_holder_depth]);
+    circle(r = baseRadius - baseWidth - servo_holder_bottom_connector_clearance);
+  }
+
+
+}
+
 
 module basePadding() {
   basePaddingWidth = baseWidth + basePaddingGuideWidth + basePaddingClearence;
@@ -156,6 +445,23 @@ module top() {
     // rail
     translate([0, 0, -railVerticalOffset])
     rail();
+
+    worm_wheel_connector_top_cuts();
+  }
+}
+
+module worm_wheel_connector_top_cuts() {
+  for (i = [0 : 2]) {
+    rotate(i * 360 / 3, [0, 0, 1])
+    union() {
+      translate([-worm_wheel_connector_width / 2, baseRadius - topWidth, topHeight - worm_wheel_connector_thickness - worm_wheel_connector_top_gap])
+      translate([0, -cutExtra, 0])
+      translate([-worm_wheel_connector_top_clearance / 2, 0, 0])
+      cube([worm_wheel_connector_width + worm_wheel_connector_top_clearance, topWidth - worm_wheel_connector_top_padding + worm_wheel_connector_top_clearance / 2 + cutExtra, worm_wheel_connector_thickness + worm_wheel_connector_top_gap + cutExtra]);
+
+      translate([0, baseRadius - topWidth / 2, topHeight - mounting_screw_hole_height])
+      cylinder(r = mounting_screw_hole_radius, h = mounting_screw_hole_height + cutExtra);
+    }
   }
 }
 
