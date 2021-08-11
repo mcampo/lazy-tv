@@ -8,7 +8,7 @@ use <worm-set.scad>
 // 66c2a5 fc8d62 8da0cb e78ac3 a6d854 ffd92f e5c494 b3b3b3
 
 // globals
-$fn = $preview ? 30 : 150;
+$fn = $preview ? 30 : 120;
 cutExtra = 1;
 
 // base dimensions
@@ -93,7 +93,8 @@ worm_drive_length = 20;
 wheel_height = worm_drive_diameter * 0.6;
 wheel_number_of_teeth = 50;//ceil((baseRadius + thread_depth + 0.3 * 2) / pitch * PI  * 2);
 wheel_radius = pitch * wheel_number_of_teeth / PI / 2;
-wheel_inner_radius = wheel_radius - thread_depth - 7;
+wheel_thickness = 10;
+wheel_inner_radius = wheel_radius - thread_depth - wheel_thickness;
 wheel_chamfer = thread_depth;
 worm_drive_vertical_position = servo_width() / 2 + servo_gear_pitch_radius + gear_worm_pitch_radius + servo_holder_thickness_bottom;
 
@@ -126,6 +127,14 @@ worm_drive(
   length = worm_drive_length
 );
 
+wheel_connector_thickness = 2;
+wheel_connector_length = baseRadius - wheel_inner_radius - 1;
+wheel_connector_width = 10;
+wheel_connector_vertical_offset = topVerticalOffset + topHeight - wheel_connector_thickness;
+wheel_connector_joint_radius = 3;
+wheel_connector_joint_insert = 2;
+wheel_connector_joint_clearance = 0.3;
+
 color("MediumAquamarine")
 translate([0, 0, worm_drive_vertical_position])
 worm_wheel_assembly();
@@ -144,61 +153,22 @@ module worm_wheel_assembly() {
     
     for(i = [0:2]) {
       rotate(i * 360 / 3, [0, 0, 1])
-      translate([0, wheel_inner_radius + (wheel_radius - thread_depth - wheel_inner_radius) / 2, -wheel_height / 2 + 0.6])
-      cylinder(r = mounting_screw_hole_radius, h = mounting_screw_hole_height + cutExtra);
+      translate([0, wheel_inner_radius + wheel_thickness / 2, wheel_height / 2 - wheel_connector_joint_insert - wheel_connector_joint_clearance])
+      cylinder(r = wheel_connector_joint_radius + wheel_connector_joint_clearance / 2, h = wheel_connector_joint_insert + wheel_connector_joint_clearance);
     }
   }
 }
 
-worm_wheel_connector_thickness = 1.2;
-worm_wheel_connector_angle = 45;
-worm_wheel_connector_width = 8;
-worm_wheel_connector_top_gap = 1;
-worm_wheel_connector_top_padding = 2;
-worm_wheel_connector_top_clearance = 0.3;
-
-
-color("DarkSeaGreen")
-for (i = [0 : 2])
-  rotate(i * 360 / 3, [0, 0, 1])
-  worm_wheel_connector();
-
-module worm_wheel_connector() {
-  worm_wheel_end_width = wheel_radius - thread_depth - wheel_inner_radius - 1;
-  top_end_width = topWidth - worm_wheel_connector_top_padding;
-  connector_height = topVerticalOffset + topHeight - worm_drive_vertical_position - wheel_height / 2 - worm_wheel_connector_top_gap;
-  connector_width = worm_wheel_connector_width;
-
-  difference() {
-    rotate(90, [0, 0, 1])
-    translate([wheel_inner_radius, connector_width / 2, worm_drive_vertical_position + wheel_height / 2])
-    rotate(90, [1, 0, 0])
-    linear_extrude(height = connector_width)
-    union() {
-      square([worm_wheel_end_width, worm_wheel_connector_thickness]);  
-      
-      translate([worm_wheel_end_width - worm_wheel_connector_thickness / sin(worm_wheel_connector_angle), 0])
-      polygon([
-        [0, 0],
-        [0, connector_height] + [connector_height * cos(worm_wheel_connector_angle) / sin(worm_wheel_connector_angle), 0],
-        [worm_wheel_connector_thickness / sin(worm_wheel_connector_angle), connector_height] + [connector_height * cos(worm_wheel_connector_angle) / sin(worm_wheel_connector_angle), 0],
-        [worm_wheel_connector_thickness / sin(worm_wheel_connector_angle), 0]
-      ]);
-      
-      extension_width = baseRadius - topWidth - wheel_inner_radius + top_end_width - worm_wheel_end_width - connector_height * cos(worm_wheel_connector_angle) / sin(worm_wheel_connector_angle) + worm_wheel_connector_thickness / sin(worm_wheel_connector_angle);
-
-      translate([baseRadius - topWidth - wheel_inner_radius + top_end_width - extension_width, connector_height - worm_wheel_connector_thickness])
-      square([extension_width, worm_wheel_connector_thickness]);
-    }
-
-    translate([0, wheel_inner_radius + (wheel_radius - thread_depth - wheel_inner_radius) / 2, worm_drive_vertical_position + wheel_height / 2])
-    translate([0, 0, -cutExtra / 2])
-    cylinder(r = mounting_screw_connecting_hole_radius, h = worm_wheel_connector_thickness + cutExtra);
-
-    translate([0, baseRadius - topWidth / 2, topVerticalOffset + topWidth])
-    translate([0, 0, -cutExtra / 2])
-    cylinder(r = mounting_screw_connecting_hole_radius, h = worm_wheel_connector_thickness + cutExtra);
+module wheel_connector() {
+  translate([0, 0, wheel_connector_vertical_offset])
+  union() {
+    translate([-wheel_connector_width / 2, wheel_inner_radius, 0])
+    cube([wheel_connector_width, wheel_connector_length, wheel_connector_thickness]);
   }
+  
+  translate([0, 0, -wheel_connector_joint_insert])
+  translate([0, wheel_inner_radius + wheel_thickness / 2, worm_drive_vertical_position + wheel_height / 2])
+  cylinder(r = wheel_connector_joint_radius, h = wheel_connector_vertical_offset - (worm_drive_vertical_position + wheel_height / 2) + wheel_connector_joint_insert);
 }
 
 color("PowderBlue")
@@ -446,23 +416,11 @@ module top() {
     translate([0, 0, -railVerticalOffset])
     rail();
 
-    worm_wheel_connector_top_cuts();
   }
-}
 
-module worm_wheel_connector_top_cuts() {
-  for (i = [0 : 2]) {
+  for (i = [0 : 2])
     rotate(i * 360 / 3, [0, 0, 1])
-    union() {
-      translate([-worm_wheel_connector_width / 2, baseRadius - topWidth, topHeight - worm_wheel_connector_thickness - worm_wheel_connector_top_gap])
-      translate([0, -cutExtra, 0])
-      translate([-worm_wheel_connector_top_clearance / 2, 0, 0])
-      cube([worm_wheel_connector_width + worm_wheel_connector_top_clearance, topWidth - worm_wheel_connector_top_padding + worm_wheel_connector_top_clearance / 2 + cutExtra, worm_wheel_connector_thickness + worm_wheel_connector_top_gap + cutExtra]);
-
-      translate([0, baseRadius - topWidth / 2, topHeight - mounting_screw_hole_height])
-      cylinder(r = mounting_screw_hole_radius, h = mounting_screw_hole_height + cutExtra);
-    }
-  }
+    wheel_connector();
 }
 
 module slice(sliceNumber = 0, sliceCount = 3) {
