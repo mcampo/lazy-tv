@@ -33,6 +33,7 @@ $fn = 20;
 function servo_top() = height + shaft_height;
 function servo_width() = width;
 function servo_length() = length;
+function servo_height() = height;
 function servo_shaft_to_pad() = height - pad_height + shaft_height;
 function servo_shaft_to_wall() = wall_to_shaft;
 function servo_pad_height() = pad_height;

@@ -132,6 +132,7 @@ module worm_drive(
   diameter,
   length
 ) {
+  echo("profile", teeth_profile(pitch = pitch, delta = delta, depth = thread_depth) / pitch);
   trapezoidal_threaded_rod(
     d = diameter,
     l = length,
