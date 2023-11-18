@@ -8,8 +8,6 @@ length = 40.5;
 width = 20.5;
 height = 39.3;
 
-//total_length = length + pad_length * 2 = 53.3
-
 //distance from nearest wall to the motor shaft
 wall_to_shaft = 10;
 
@@ -41,11 +39,7 @@ function servo_pad_length() = pad_length;
 function servo_pad_hole_distance() = hole_distance;
 function servo_shaft_diameter() = shaft_diameter;
 
-translate([40, -6, 0])
-cube([12, 12, 32]);
-
 module pad(){
-    color("lightgrey")
     difference(){
         cube([pad_length, width, pad_thick]);
         translate([pad_length/2, width/2-hole_distance/2, -0.5])
@@ -58,9 +52,11 @@ module pad(){
 module servo(){
     translate([-wall_to_shaft, -width / 2, 0])
     union() {
+      color("lightgrey")
       translate([-pad_length,0,pad_height])
       pad();
 
+      color("lightgrey")
       translate([length,0,pad_height])
       pad();
 

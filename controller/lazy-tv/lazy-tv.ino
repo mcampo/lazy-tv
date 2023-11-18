@@ -1,113 +1,133 @@
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ESP8266WebServer.h>
+//#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
 #include <Servo.h>
-#include <IRremote.h>
 
 struct STATE {
   boolean isMoving;
-  boolean isAccelerating;
-  unsigned long timeOfAccelerationStart;
   unsigned long timeOfLastCommand;
   unsigned long differenceSinceLastCommand;
 };
 
-const int RECV_PIN = 7;
-const unsigned long REMOTE_KEY_LEFT = 0xE0E0A659;
-const unsigned long REMOTE_KEY_RIGHT = 0xE0E046B9;
-const unsigned long REMOTE_KEY_UP = 0xE0E006F9;
-const unsigned long REMOTE_KEY_DOWN = 0xE0E08679;
+ESP8266WebServer server(80);
 
-const unsigned long REMOTE_KEY_REWIND = 0xB68AB4C8; // DB31820E 
-const unsigned long REMOTE_KEY_FORWARD = 0xC28EC9F8; // 3DC53C42
+const char* ssid = "TeleCentro-0e53";
+const char* password = "monononinos";
 
+const byte COMMAND_IDLE_THRESHOLD = 250;
 
-const byte COMMAND_IDLE_THRESHOLD = 120;
-
-const byte SERVO_PIN = 9;
-const byte SERVO_ACCELERATING_LEFT_POSITION = 105;
-const byte SERVO_MOVING_LEFT_POSITION = 120;//103;//112;
-const byte SERVO_ACCELERATING_RIGHT_POSITION = 81;
-const byte SERVO_MOVING_RIGHT_POSITION = 60;//85;//74;
+const byte SERVO_PIN = D6;
+const byte SERVO_MOVING_LEFT_POSITION = 76;
+const byte SERVO_MOVING_RIGHT_POSITION = 104;
 const byte SERVO_STOP_POSITION = 90;
-const int SERVO_ACCELERATION_DURATION = 200;
 
-const byte MOTOR_PIN_ENABLE = 9;
-const byte MOTOR_PIN_1 = 10;
-const byte MOTOR_PIN_2 = 11;
+Servo myservo;
+STATE state = { false, 0, 0 };
 
-const byte MOTOR_MAX_SPEED = 50; // 115 = ~6V
-
-
-IRrecv irrecv(RECV_PIN);
-decode_results results;
-//Servo myservo;
-STATE state = { false, false, 0, 0, 0 };
+const String mainHTML = "<meta name=viewport content='width=device-width,initial-scale=1'><style>body{display:flex;flex-direction:column}h1{text-align:center}div{display:flex}input[type=button]{padding:20px;margin:0 20px;flex-grow:1}</style><script>let moveIntervalId=null;function onMoveStart(t){moveIntervalId&&clearInterval(moveIntervalId),moveIntervalId=setInterval((()=>fetch(`/move?direction=${t}`)),200)}function onMoveStop(){clearInterval(moveIntervalId)}document.addEventListener('DOMContentLoaded',(()=>{const t=void 0!==window.ontouchstart?'touchstart':'mousedown',e=void 0!==window.ontouchstart?'touchend':'mouseup';console.log(t,e),document.getElementById('button-left').addEventListener(t,(()=>onMoveStart('left'))),document.getElementById('button-right').addEventListener(t,(()=>onMoveStart('right'))),document.getElementById('button-left').addEventListener(e,(()=>onMoveStop())),document.getElementById('button-right').addEventListener(e,(()=>onMoveStop()))}))</script><h1>LazyTV</h1><div><input type=button value=Left id=button-left><input type=button value=Right id=button-right></div>";
 
 void setup(){
-  pinMode(MOTOR_PIN_ENABLE, OUTPUT);
-  pinMode(MOTOR_PIN_1, OUTPUT);
-  pinMode(MOTOR_PIN_2, OUTPUT);
-  
-  Serial.begin(9600);
-  irrecv.enableIRIn();
-  irrecv.blink13(true);
-//  myservo.attach(SERVO_PIN);
+  Serial.begin(115200);
+  OTASetup();
+
+  server.on("/", HTTP_GET, handleServerRoot);
+  server.on("/move", HTTP_GET, handleServerMove);
+  server.begin();
+}
+
+void handleServerRoot() {
+  server.send(200, "text/html", mainHTML);
+}
+
+void handleServerMove() {
+  String direction = server.arg("direction");
+  if (direction == "left") {
+    moveLeft();
+  }
+  if (direction == "right") {
+    moveRight();
+  }
+  state.timeOfLastCommand = millis();
+  server.send(200, "text/plain", direction);
 }
 
 void loop(){
-  delay(2000);
-  moveLeft();
-  delay(4000);
-  stopMoving();
-  delay(2000);
-  moveRight();
-  delay(4000);
-  stopMoving();
+  ArduinoOTA.handle();
+  server.handleClient();
 
-//  state.differenceSinceLastCommand = millis() - state.timeOfLastCommand;
-//
-//  if (irrecv.decode(&results)) {
-//    Serial.println(results.value, HEX);
-//    switch(results.value) {
-//      case REMOTE_KEY_LEFT:
-//        if (!state.isMoving) {
-//          Serial.println("MOVING LEFT");
-//          moveLeft();
-//          state.isMoving = true;
-//        }
-//        break;
-//      case REMOTE_KEY_RIGHT:
-//        if (!state.isMoving) {
-//          Serial.println("MOVING RIGHT");
-//          moveRight();
-//          state.isMoving = true;
-//        }
-//        break;
-//    }
-//
-//    state.timeOfLastCommand = millis();
-//    irrecv.resume();
-//  } else {
-//    if (state.isMoving && state.differenceSinceLastCommand > COMMAND_IDLE_THRESHOLD) {
-//      Serial.println("STOP");
-//      stopMoving();
-//      state.isMoving = false;
-//    }
-//  }
+  state.differenceSinceLastCommand = millis() - state.timeOfLastCommand;
+  if (state.isMoving && state.differenceSinceLastCommand > COMMAND_IDLE_THRESHOLD) {
+    stop();
+  }
+}
+
+void stop() {
+  Serial.println("STOP");
+  myservo.write(SERVO_STOP_POSITION);
+  myservo.detach();
+  state.isMoving = false;
 }
 
 void moveLeft() {
-  digitalWrite(MOTOR_PIN_1, HIGH);
-  digitalWrite(MOTOR_PIN_2, LOW);
-  analogWrite(MOTOR_PIN_ENABLE, MOTOR_MAX_SPEED);
+  if (!state.isMoving) {
+    Serial.println("MOVING LEFT");
+    state.isMoving = true;
+    myservo.attach(SERVO_PIN);
+    myservo.write(SERVO_MOVING_LEFT_POSITION);
+  }
 }
 
 void moveRight() {
-  digitalWrite(MOTOR_PIN_1, LOW);
-  digitalWrite(MOTOR_PIN_2, HIGH);
-  analogWrite(MOTOR_PIN_ENABLE, MOTOR_MAX_SPEED);
+  if (!state.isMoving) {
+    Serial.println("MOVING RIGHT");
+    state.isMoving = true;
+    myservo.attach(SERVO_PIN);
+    myservo.write(SERVO_MOVING_RIGHT_POSITION);
+  }
 }
 
-void stopMoving() {
-  digitalWrite(MOTOR_PIN_1, LOW);
-  digitalWrite(MOTOR_PIN_2, LOW);
-  analogWrite(MOTOR_PIN_ENABLE, 0);
+void OTASetup() {
+  Serial.println("Booting");
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+    Serial.println("Connection Failed! Rebooting...");
+    delay(5000);
+    ESP.restart();
+  }
+
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  ArduinoOTA.setHostname("lazytv");
+
+  // No authentication by default
+  ArduinoOTA.setPassword((const char *)"lala");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+  Serial.println("OTA Ready");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Hostname: ");
+  Serial.println(ArduinoOTA.getHostname());
 }

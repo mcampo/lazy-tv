@@ -1,0 +1,58 @@
+<!-- minify running: npx html-minifier-terser --collapse-boolean-attributes --collapse-whitespace --decode-entities --minify-css --minify-js '{"format": {"quote_style": 1}}' --process-conditional-comments --quote-character \' --remove-attribute-quotes --remove-comments --remove-empty-attributes --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --use-short-doctype lazytv.html-->
+<html>
+
+<head>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    div {
+      display: flex;
+    }
+
+    input[type=button] {
+      padding: 20px;
+      margin: 0px 20px;
+      flex-grow: 1;
+    }
+  </style>
+  <script>
+    let moveIntervalId = null;
+    document.addEventListener('DOMContentLoaded', () => {
+      const touchStartEventName = typeof (window.ontouchstart) != 'undefined' ? 'touchstart' : 'mousedown';
+      const touchEndEventName = typeof (window.ontouchstart) != 'undefined' ? 'touchend' : 'mouseup';
+      console.log(touchStartEventName, touchEndEventName)
+      document.getElementById('button-left').addEventListener(touchStartEventName, () => onMoveStart('left'));
+      document.getElementById('button-right').addEventListener(touchStartEventName, () => onMoveStart('right'));
+      document.getElementById('button-left').addEventListener(touchEndEventName, () => onMoveStop());
+      document.getElementById('button-right').addEventListener(touchEndEventName, () => onMoveStop());
+    });
+
+    function onMoveStart(direction) {
+      if (moveIntervalId) {
+        clearInterval(moveIntervalId);
+      }
+      moveIntervalId = setInterval(() => fetch(`/move?direction=${direction}`), 200);
+    }
+
+    function onMoveStop() {
+      clearInterval(moveIntervalId);
+    }
+  </script>
+</head>
+
+<body>
+  <h1>LazyTV</h1>
+  <div>
+    <input type='button' value='Left' id='button-left'><input type='button' value='Right' id='button-right'>
+  </div>
+</body>
+
+</html>

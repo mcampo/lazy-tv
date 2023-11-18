@@ -179,11 +179,11 @@ module worm_set_base(
     
     translate([wheel_radius + worm_drive_diameter / 2 - worm_drive_thread_depth - __x(worm_drive_diameter) - base_width / 2, -wheel_radius * 0.6, 3])
     rotate([90, 0, 0])
-    rod_support(base_width, base_height, base_depth, worm_drive_diameter, thread_depth, worm_drive_distance);
+    rod_support(base_width, base_height, base_depth, worm_drive_diameter, worm_drive_diameter - thread_depth * 2, worm_drive_distance);
 
     translate([wheel_radius + worm_drive_diameter / 2 - worm_drive_thread_depth - __x(worm_drive_diameter) - base_width / 2, wheel_radius * 0.6 + base_depth, 3])
     rotate([90, 0, 0])
-    rod_support(base_width, base_height, base_depth, worm_drive_diameter, thread_depth, worm_drive_distance);
+    rod_support(base_width, base_height, base_depth, worm_drive_diameter, worm_drive_diameter - thread_depth * 2, worm_drive_distance);
   }
 }
 
@@ -192,19 +192,20 @@ module rod_support(
   base_height,
   base_depth,
   worm_drive_diameter,
-  thread_depth,
+  rod_diameter,
   worm_drive_distance,
   clearance = 0.15
 ) {
-  echo(base_width);
   linear_extrude(height = base_depth)
   union() {
-    offset(r = base_width * 0.05) offset(delta = -base_width * 0.05)
     difference(){
-      square([base_width, base_height]);
+      union() {
+        offset(r = base_width * 0.1) offset(delta = -base_width * 0.1)
+        square([base_width, base_height]);
+        square([base_width, base_width * 0.1]);
+      }
       translate([base_width / 2, worm_drive_diameter / 2 + worm_drive_distance])
-      circle(r = worm_drive_diameter / 2 - thread_depth + clearance);
+      circle(r = rod_diameter / 2 + clearance);
     }
-    square([base_width, 1]);
   }
 }  
