@@ -1,3 +1,7 @@
 .DS_Store
 lib
 stl
+**/__pycache__
+**/env
+src/gesture/training/exported_model
+

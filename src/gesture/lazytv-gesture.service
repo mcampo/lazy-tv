@@ -1,0 +1,12 @@
+[Unit]
+Description=LazyTV Gesture
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/bash /home/mcampo/gesture/run.sh
+WorkingDirectory=/home/mcampo/gesture
+Restart=always
+User=mcampo
+
+[Install]
+WantedBy=multi-user.target
