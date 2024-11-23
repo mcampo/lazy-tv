@@ -1,4 +1,19 @@
 
+
+# Setup
+
+## Install and configure mosquitto broker
+
+SSH into the raspberry and install mosquitto packages:
+
+```
+sudo apt install -y mosquitto mosquitto-clients
+sudo bash -c 'echo -e "listener 1883\nallow_anonymous true\n\nlistener 9001\nprotocol websockets\nallow_anonymous true\n" > /etc/mosquitto/conf.d/lazytv.conf'
+sudo systemctl restart mosquitto.service
+```
+
+## Install Gesture code 
+
 To copy code to the raspberry:
 ```
 ./copy-files.sh
@@ -24,7 +39,7 @@ sudo systemctl start lazytv-gesture
 
 See logs
 ```
-journalctl -u lazytv-gesture
+journalctl -r -u lazytv-gesture
 ```
 
 

@@ -8,7 +8,11 @@ class PiCamera:
 
     def start(self):
         self.picam2 = Picamera2()
-        config = self.picam2.create_preview_configuration({"size": (self.frame_width, self.frame_height)})
+        config = self.picam2.create_preview_configuration(main={
+            "format": "RGB888",
+            "size": (int(self.frame_width), int(self.frame_height)),
+            },
+            buffer_count=2)
         self.picam2.align_configuration(config)
         self.picam2.configure(config)
         self.picam2.start()
@@ -22,4 +26,6 @@ class PiCamera:
         return image
     
     def destroy(self):
-        pass
+        self.picam2.stop()
+        self.picam2.stop_encoder()
+        self.picam2.close()

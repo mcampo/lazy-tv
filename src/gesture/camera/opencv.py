@@ -18,6 +18,7 @@ class OpenCVCamera:
         success, image = self.cap.read()
         if not success:
             raise Exception("Unable to read from camera")
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         return image
     
     def destroy(self):

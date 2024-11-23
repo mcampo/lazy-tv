@@ -1,6 +1,9 @@
 .DS_Store
 lib
-stl
+**/*.stl
+**/*.step
+**/*.FCBak
+**/*.3mf
 **/__pycache__
 **/env
 src/gesture/training/exported_model

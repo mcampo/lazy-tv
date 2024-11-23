@@ -1,0 +1,94 @@
+<!-- minify running: npx html-minifier-terser --collapse-boolean-attributes --collapse-whitespace --decode-entities --minify-css --minify-js '{"format": {"quote_style": 1}}' --process-conditional-comments --quote-character \' --remove-attribute-quotes --remove-comments --remove-empty-attributes --remove-optional-tags --remove-redundant-attributes --remove-script-type-attributes --remove-style-link-type-attributes --use-short-doctype lazytv.html-->
+<html>
+
+<head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        div {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input[type=button] {
+            padding: 20px;
+            margin: 0px 20px;
+            flex-grow: 1;
+        }
+    </style>
+    <script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+    <script>
+        let cameraPosition = 0;
+        let client;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('button-on').addEventListener('click', () => setTVState('on'));
+            document.getElementById('button-off').addEventListener('click', () => setTVState('off'));
+            document.getElementById('button-minus').addEventListener('click', () => decreaseCameraPosition());
+            document.getElementById('button-plus').addEventListener('click', () => increseCameraPosition());
+            document.querySelectorAll('input[type=button]').forEach(button => button.disabled = true);
+
+            client = mqtt.connect('ws://raspberrypi.local:9001', {
+                clientId: 'lazytv_camera_control' + Math.random().toString(16).substr(2, 8)
+            })
+            client.on('connect', () => {
+                console.log('Connected to MQTT broker')
+                document.querySelectorAll('input[type=button]').forEach(button => button.disabled = false);
+            })
+            client.on('error', (err) => {
+                console.error('MQTT error:', err);
+            })
+            client.on('close', () => {
+                console.log('Connection to MQTT broker closed');
+                document.querySelectorAll('input[type=button]').forEach(button => button.disabled = true);
+            })
+        });
+
+        function setTVState(state) {
+            client.publish('lazytv/tv/state', state);
+        }
+
+        function decreaseCameraPosition() {
+            cameraPosition -= 0.1;
+            if (cameraPosition < -1) {
+                cameraPosition = -1;
+            }
+            setCameraPosition();
+        }
+
+        function increseCameraPosition() {
+            cameraPosition += 0.1;
+            if (cameraPosition > 1) {
+                cameraPosition = 1;
+            }
+            setCameraPosition();
+        }
+
+        function setCameraPosition() {
+            client.publish('lazytv/camera/servo/value/set', cameraPosition.toFixed(1));
+            document.getElementById('camera-position').innerHTML = cameraPosition.toFixed(1);
+        }
+    </script>
+</head>
+
+<body>
+    <h1>LazyTV - Camera</h1>
+    <div>
+        <input type='button' value='On' id='button-on'><input type='button' value='Off' id='button-off'>
+    </div>
+    <div>
+        <input type='button' value='-' id='button-minus'><span id='camera-position'></span><input type='button'
+            value='+' id='button-plus'>
+    </div>
+</body>
+
+</html>
