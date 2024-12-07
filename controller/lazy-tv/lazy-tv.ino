@@ -1,37 +1,57 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WebServer.h>
+#include <PubSubClient.h>
 //#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <Servo.h>
 
+#include "lazy-tv.h"
+
 struct STATE {
   boolean isMoving;
   unsigned long timeOfLastCommand;
-  unsigned long differenceSinceLastCommand;
+};
+
+struct TV_STATE {
+  bool isOn;
+  unsigned long timeOfLastCheck;
 };
 
 ESP8266WebServer server(80);
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
 
-const char* ssid = "";
-const char* password = "";
+unsigned long mqttLastConnectAttempt = 0;
+const int MQTT_CONNECTION_ATTEMPT_INTERVAL = 30000;
 
-const byte COMMAND_IDLE_THRESHOLD = 250;
+const char* WIFI_SSID = "...";
+const char* WIFI_PASSWORD = "...";
+const char* MQTT_SERVER_HOST = "...";
+const char* OTA_PASSWORD = "...";
+
+const int COMMAND_IDLE_THRESHOLD = 400;
 
 const byte SERVO_PIN = D6;
 const byte SERVO_MOVING_LEFT_POSITION = 76;
 const byte SERVO_MOVING_RIGHT_POSITION = 104;
 const byte SERVO_STOP_POSITION = 90;
 
-Servo myservo;
-STATE state = { false, 0, 0 };
+const byte TV_USB_PIN = A0;
+const int TV_USB_THRESHOLD = 512;
+const int TV_USB_CHECK_INTERVAL = 1000;
+TV_STATE tvState = { false, 0 };
 
-const String mainHTML = "<meta name=viewport content='width=device-width,initial-scale=1'><style>body{display:flex;flex-direction:column}h1{text-align:center}div{display:flex}input[type=button]{padding:20px;margin:0 20px;flex-grow:1}</style><script>let moveIntervalId=null;function onMoveStart(t){moveIntervalId&&clearInterval(moveIntervalId),moveIntervalId=setInterval((()=>fetch(`/move?direction=${t}`)),200)}function onMoveStop(){clearInterval(moveIntervalId)}document.addEventListener('DOMContentLoaded',(()=>{const t=void 0!==window.ontouchstart?'touchstart':'mousedown',e=void 0!==window.ontouchstart?'touchend':'mouseup';console.log(t,e),document.getElementById('button-left').addEventListener(t,(()=>onMoveStart('left'))),document.getElementById('button-right').addEventListener(t,(()=>onMoveStart('right'))),document.getElementById('button-left').addEventListener(e,(()=>onMoveStop())),document.getElementById('button-right').addEventListener(e,(()=>onMoveStop()))}))</script><h1>LazyTV</h1><div><input type=button value=Left id=button-left><input type=button value=Right id=button-right></div>";
-const String cameraHTML = "<meta name=viewport content='width=device-width,initial-scale=1'><style>body{display:flex;flex-direction:column}h1{text-align:center}div{display:flex;align-items:center;margin-bottom:20px}input[type=button]{padding:20px;margin:0 20px;flex-grow:1}</style><script src=https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js></script><script>let client,cameraPosition=0;function setTVState(e){client.publish('lazytv/tv/state',e)}function decreaseCameraPosition(){cameraPosition-=.1,cameraPosition<-1&&(cameraPosition=-1),setCameraPosition()}function increseCameraPosition(){cameraPosition+=.1,cameraPosition>1&&(cameraPosition=1),setCameraPosition()}function setCameraPosition(){client.publish('lazytv/camera/servo/value/set',cameraPosition.toFixed(1)),document.getElementById('camera-position').innerHTML=cameraPosition.toFixed(1)}document.addEventListener('DOMContentLoaded',(()=>{document.getElementById('button-on').addEventListener('click',(()=>setTVState('on'))),document.getElementById('button-off').addEventListener('click',(()=>setTVState('off'))),document.getElementById('button-minus').addEventListener('click',(()=>decreaseCameraPosition())),document.getElementById('button-plus').addEventListener('click',(()=>increseCameraPosition())),document.querySelectorAll('input[type=button]').forEach((e=>e.disabled=!0)),client=mqtt.connect('ws://raspberrypi.local:9001',{clientId:'lazytv_camera_control'+Math.random().toString(16).substr(2,8)}),client.on('connect',(()=>{console.log('Connected to MQTT broker'),document.querySelectorAll('input[type=button]').forEach((e=>e.disabled=!1))})),client.on('error',(e=>{console.error('MQTT error:',e)})),client.on('close',(()=>{console.log('Connection to MQTT broker closed'),document.querySelectorAll('input[type=button]').forEach((e=>e.disabled=!0))}))}))</script><h1>LazyTV - Camera</h1><div><input type=button value=On id=button-on><input type=button value=Off id=button-off></div><div><input type=button value=- id=button-minus><span id=camera-position></span><input type=button value=+ id=button-plus></div>";
+Servo myservo;
+STATE state = { false, 0 };
 
 void setup(){
   Serial.begin(115200);
+  connectToWifi();
   OTASetup();
+
+  mqttClient.setServer(MQTT_SERVER_HOST, 1883);
+  mqttClient.setKeepAlive(60);
 
   server.on("/", HTTP_GET, handleServerRoot);
   server.on("/camera", HTTP_GET, handleServerCamera);
@@ -40,14 +60,15 @@ void setup(){
 }
 
 void handleServerRoot() {
-  server.send(200, "text/html", mainHTML);
+  server.send(200, "text/html", MAIN_HTML);
 }
 
 void handleServerCamera() {
-  server.send(200, "text/html", cameraHTML);
+  server.send(200, "text/html", CAMERA_HTML);
 }
 
 void handleServerMove() {
+  state.timeOfLastCommand = millis();
   String direction = server.arg("direction");
   if (direction == "left") {
     moveLeft();
@@ -55,18 +76,76 @@ void handleServerMove() {
   if (direction == "right") {
     moveRight();
   }
-  state.timeOfLastCommand = millis();
   server.send(200, "text/plain", direction);
+}
+
+void connectToMQTTServer() {
+  // Create a random client ID
+  char clientId[25];
+  snprintf(clientId, sizeof(clientId), "lazytv_esp8266_%04X", random(0xFFFF));
+  Serial.print("Attempting MQTT connection (clientId=");
+  Serial.print(clientId);
+  Serial.print(")...");
+  // Attempt to connect
+  if (mqttClient.connect(clientId)) {
+    Serial.println(" connected");
+  } else {
+    Serial.print("failed. Client state=");
+    Serial.println(mqttClient.state());
+  }
+}
+
+void motorLoop() {
+  unsigned long currentMillis = millis();
+
+  if (state.isMoving && currentMillis - state.timeOfLastCommand > COMMAND_IDLE_THRESHOLD) {
+    stop();
+  }
+}
+
+void mqttLoop() {
+  unsigned long currentMillis = millis();
+
+  if (!mqttClient.connected() && currentMillis - mqttLastConnectAttempt > MQTT_CONNECTION_ATTEMPT_INTERVAL) {
+    mqttLastConnectAttempt = currentMillis;
+    Serial.print("Not connected inside loop. Client state=");
+    Serial.println(mqttClient.state());
+
+    connectToMQTTServer();
+  }
+  mqttClient.loop();  
+}
+
+void tvStateLoop() {
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - tvState.timeOfLastCheck > TV_USB_CHECK_INTERVAL) {
+    tvState.timeOfLastCheck = currentMillis;
+    int tvUSBValue = analogRead(TV_USB_PIN);
+    if (!tvState.isOn && tvUSBValue >= TV_USB_THRESHOLD) {
+      Serial.println("TV turned on");
+      tvState.isOn = true;
+      if (mqttClient.connected()) {
+          mqttClient.publish("lazytv/tv/state", "on");
+      }
+    }
+    if (tvState.isOn && tvUSBValue < TV_USB_THRESHOLD) {
+      Serial.println("TV turned off");
+      tvState.isOn = false;
+      if (mqttClient.connected()) {
+          mqttClient.publish("lazytv/tv/state", "off");
+      }
+    }
+  }
 }
 
 void loop(){
   ArduinoOTA.handle();
   server.handleClient();
 
-  state.differenceSinceLastCommand = millis() - state.timeOfLastCommand;
-  if (state.isMoving && state.differenceSinceLastCommand > COMMAND_IDLE_THRESHOLD) {
-    stop();
-  }
+  motorLoop();
+  mqttLoop();
+  tvStateLoop();
 }
 
 void stop() {
@@ -94,16 +173,18 @@ void moveRight() {
   }
 }
 
-void OTASetup() {
-  Serial.println("Booting");
+void connectToWifi() {
+  Serial.println("Connecting to Wifi");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.println("Connection Failed! Rebooting...");
     delay(5000);
     ESP.restart();
   }
+}
 
+void OTASetup() {
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
 
@@ -111,7 +192,7 @@ void OTASetup() {
   ArduinoOTA.setHostname("lazytv");
 
   // No authentication by default
-  ArduinoOTA.setPassword((const char *)"lala");
+  ArduinoOTA.setPassword(OTA_PASSWORD);
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");

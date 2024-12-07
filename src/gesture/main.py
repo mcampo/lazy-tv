@@ -2,18 +2,20 @@ import argparse
 import signal
 import sys
 import time
+import os
 from functools import partial
 
 from mqtt.client import MQTTClient
 from servo import ServoController
 from recognizer import Recognizer
 
-# LAZYTV_MQTT_HOST = os.environ["LAZYTV_MQTT_HOST"]
-LAZYTV_MQTT_HOST = "raspberrypi.local"
+LAZYTV_MQTT_HOST = os.environ["LAZYTV_MQTT_HOST"]
 LAZYTV_MQTT_PORT = 1883
+
 
 def main(width: int, height: int, vertical_flip: bool, headless: bool, verbose: bool):
     servo_controller = ServoController()
+    servo_controller.toOffPosition()
     recognizer = Recognizer(
         width=width,
         height=height,

@@ -20,6 +20,7 @@ class LazyTVClient:
     def move(self, direction):
         time_since_last_call = get_current_time() - self.last_call_time
         if time_since_last_call >= TIME_BETWEEN_CALLS_MS:
+            print(f"time since last call {time_since_last_call}")
             self.executor.submit(do_request, f"/move?direction={direction}")
             self.last_call_time = get_current_time()
 
